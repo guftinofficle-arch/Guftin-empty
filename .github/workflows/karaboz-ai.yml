@@ -1,0 +1,32 @@
+name: Karaboz AI checks
+
+on:
+  push:
+    paths:
+      - "karaboz-ai/**"
+      - ".github/workflows/karaboz-ai.yml"
+  pull_request:
+    paths:
+      - "karaboz-ai/**"
+      - ".github/workflows/karaboz-ai.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: karaboz-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: karaboz-ai/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run model tests
+        run: python -m unittest discover -s tests -v
