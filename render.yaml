@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: karaboz-ai-api
+    runtime: python
+    plan: free
+    rootDir: karaboz-ai
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: KARABOZ_API_KEY
+        generateValue: true
