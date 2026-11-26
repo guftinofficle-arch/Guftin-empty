@@ -1,29 +1,37 @@
-# Karaboz AI cloud backend (preview)
+# Karaboz AI cloud backend
 
-## Deployed resources
+## Live resources
 - Supabase project: `lttcoxzbjoevuaohpjir`
-- Edge Function: `karaboz-chat` (active, JWT verification enabled)
+- Edge Function: `karaboz-chat` (JWT verification enabled; deployed version 10)
 - Function URL: `https://lttcoxzbjoevuaohpjir.supabase.co/functions/v1/karaboz-chat`
-- Web client: `web/index.html`
-- Database: `karaboz_conversations` and `karaboz_messages`, both protected by Row Level Security.
+- Database: `karaboz_conversations` and `karaboz_messages`, protected by Row Level Security.
 
-## AI provider setup (Cloudflare Workers AI)
-The API and database are deployed. Actual model replies remain disabled until two Cloudflare secrets are added to Supabase:
-1. Open the Cloudflare dashboard and visit Workers AI > Use REST API. Create a Workers AI API token with the minimum Workers AI permissions shown there, and copy your Cloudflare Account ID.
-2. In Supabase Dashboard > Edge Functions > Secrets, add:
-   - `CF_ACCOUNT_ID` = your Cloudflare Account ID
-   - `CF_API_TOKEN` = your Cloudflare Workers AI token
-3. Never paste either value into GitHub, this chat, the HTML file, or a mobile app. Keep them only in server-side Edge Function secrets.
+## Inference provider
+Karaboz uses Cloudflare Workers AI hosted inference with model `@cf/zai-org/glm-4.7-flash`. This is not a locally trained Karaboz checkpoint. The model weights are hosted by Cloudflare, so no `karaboz-mini.pt` file is required for the live chat endpoint.
 
-The function calls the OpenAI-compatible Cloudflare Workers AI endpoint with model `@cf/meta/llama-3.1-8b-instruct`. Cloudflare currently documents a free Workers AI allocation of 10,000 Neurons per day on Workers Free. When the free daily limit is reached, requests stop until reset; do not upgrade to Workers Paid if the goal is zero cost. Model availability and limits may change.
+The model is multilingual and Cloudflare documents it as available on Workers Free, but usage is subject to the current account allocation, model capacity, and provider pricing/limits. Do not promise unlimited free usage.
 
-## Deploy the web UI
-Import `guftinofficle-arch/Guftin-empty` in Vercel, select branch `feature/karaboz-ai-backend`, and set Root Directory to `karaboz-ai/web`. It is a static HTML client; no build command is required. Vercel documents repository import and root-directory configuration in its deployment guide.
+## Required server-side secrets
+Actual model replies remain unavailable until both secrets are present in Supabase:
+1. In the Cloudflare dashboard, open Workers AI and create an API token with the minimum Workers AI permission needed for inference. Find the Cloudflare Account ID in the account dashboard.
+2. In Supabase Dashboard for project `lttcoxzbjoevuaohpjir`, open **Project Settings → Edge Functions → Secrets** (or the Edge Functions Secrets page) and add:
+   - `CF_ACCOUNT_ID` = Cloudflare Account ID
+   - `CF_API_TOKEN` = Cloudflare Workers AI API token
+3. Optional: `CF_MODEL_ID` = `@cf/zai-org/glm-4.7-flash` (the function already uses this default).
+4. Redeploy is not needed after adding function secrets; the runtime reads them at invocation.
 
-## API contract
-- `GET /functions/v1/karaboz-chat`: authenticated status; reports whether Cloudflare secrets are configured.
-- `POST /functions/v1/karaboz-chat`: authenticated JSON body `{"message":"Hello","conversation_id":null}`; returns `conversation_id`, `reply`, and `model`.
-- JWT verification is enabled. Conversation and message rows are isolated by `auth.uid()`.
+Never put these values in GitHub source, the HTML client, an APK, screenshots, or chat messages. Never share the token with anyone.
 
-## Current limitations
-This is a hosted-model integration, not a Karaboz language model trained from scratch. Cloudflare serves the model; Karaboz owns the UI, API layer, authentication integration, and chat-history database. Free usage is limited and not guaranteed to be always available. The earlier local mini-transformer remains an experimental training baseline and is not used by this endpoint. Do not train on private Guftin chats or personal data without informed permission.
+## API
+- Authenticated `GET /functions/v1/karaboz-chat` returns provider/model and `inference_configured`.
+- Authenticated `POST /functions/v1/karaboz-chat` accepts JSON: `{"message":"Hello","conversation_id":null}`.
+- Successful response includes `conversation_id`, `reply`, `model`, and `provider`.
+- The Edge Function verifies the Supabase user, validates conversation ownership, limits message length and history, and writes user/assistant messages to the signed-in user's chat.
+
+## Important distinction: hosted model vs own model
+The repository's local character-level mini model is only an educational training baseline and has no trained checkpoint. A real independently owned Karaboz model would require a suitable open-weight base model, a permitted training dataset, compute, training/evaluation, and durable model hosting. Do not create a fake checkpoint or claim that random/synthetic weights make a useful assistant. This release uses hosted inference to make chat functional without pretending Karaboz has already trained its own foundation model.
+
+## Troubleshooting
+- If GET reports `inference_configured: false`, one or both Cloudflare secrets are missing or empty.
+- If POST returns `AI_PROVIDER_ERROR`, check token permission, account ID, model access, quota/capacity, and Supabase Edge Function logs.
+- Never expose private messages or train on them without informed permission.
