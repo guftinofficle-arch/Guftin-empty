@@ -11,8 +11,8 @@ android {
         applicationId = "com.karaboz.ai"
         minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
     }
 
     // Keep Java and Kotlin bytecode targets aligned with the JDK 17 build runner.
